@@ -1,111 +1,32 @@
 
-import os
-import json
-import time
-import urllib.request
-import urllib.error
-from pathlib import Path
-from datetime import datetime
+name: Generate Naija Story
 
-api_key = os.environ["GEMINI_API_KEY"]
+on:
+  workflow_dispatch:
 
-model = "gemini-3.8-flash"
+permissions:
+  contents: read
 
-prompt = """
-You are the lead storyteller for Naija Story Vault.
+jobs:
+  generate:
+    runs-on: ubuntu-latest
 
-Write an original Nigerian family drama titled:
-THE MAID WHO INHERITED EVERYTHING
+    steps:
+      - name: Get repository files
+        uses: actions/checkout@v4
 
-Characters:
-Ada: a young hardworking maid.
-Oga Emeka: a wealthy businessman.
-Ife: his curious 10-year-old daughter.
-Mama Nkechi: a sharp-eyed older woman.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-Requirements:
-- Approximately 900 words.
-- Simple English mixed naturally with Nigerian Pidgin.
-- Authentic Nigerian settings and dialogue.
-- Strong opening hook.
-- Emotional suspense and believable twists.
-- Clear scene headings and dialogue.
-- A satisfying ending and life lesson.
-- Entirely original fictional story.
+      - name: Generate story with Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/generate_story.py
 
-Return the complete story in Markdown.
-"""
-
-url = (
-    f"https://generativelanguage.googleapis.com/"
-    f"v1beta/models/{model}:generateContent"
-)
-
-payload = {
-    "contents": [{
-        "parts": [{"text": prompt}]
-    }],
-    "generationConfig": {
-        "temperature": 0.9,
-        "maxOutputTokens": 5000
-    }
-}
-
-for attempt in range(1, 5):
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": api_key
-        },
-        method="POST"
-    )
-
-    try:
-        print(f"Gemini attempt {attempt}/4")
-
-        with urllib.request.urlopen(
-            request, timeout=180
-        ) as response:
-            result = json.loads(
-                response.read().decode("utf-8")
-            )
-
-        story = result["candidates"][0]["content"]["parts"][0]["text"]
-
-        output = Path("stories")
-        output.mkdir(exist_ok=True)
-
-        filename = (
-            "the-maid-who-inherited-everything-"
-            + datetime.now().strftime("%Y%m%d-%H%M%S")
-            + ".md"
-        )
-
-        (output / filename).write_text(
-            story, encoding="utf-8"
-        )
-
-        print(f"SUCCESS: {filename}")
-        break
-
-    except urllib.error.HTTPError as error:
-        details = error.read().decode("utf-8", errors="replace")
-        print(f"Gemini HTTP error: {error.code}")
-        print(details[:1500])
-
-        if error.code == 503 and attempt < 4:
-            delay = 20 * (2 ** (attempt - 1))
-            print(f"Server busy. Waiting {delay} seconds...")
-            time.sleep(delay)
-            continue
-
-        raise
-
-    except Exception as error:
-        print(f"Generation failed: {error}")
-        raise
-
-else:
-    raise RuntimeError("Gemini could not generate the story.")
+      - name: Save generated story
+        uses: actions/upload-artifact@v4
+        with:
+          name: naija-story
+          path: stories/
