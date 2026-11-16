@@ -1,0 +1,33 @@
+
+name: Generate Naija Story
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate story with Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/generate_story.py
+
+      - name: Save generated story
+        uses: actions/upload-artifact@v4
+        with:
+          name: naija-story
+          path: stories/
+￼Enter
