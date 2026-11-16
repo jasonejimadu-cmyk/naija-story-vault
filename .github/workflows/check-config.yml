@@ -1,0 +1,21 @@
+
+name: Check Channel Configuration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository files
+        uses: actions/checkout@v4
+
+      - name: Validate channel settings
+        run: |
+          python -m json.tool config/channel.json
+          echo "Naija Story Vault configuration is valid!"
